@@ -71,7 +71,7 @@ class _SwipeDeckState extends State<SwipeDeck> with SingleTickerProviderStateMix
       });
       return;
     }
-    if (dx > _swipeThreshold) {
+    if (dx < -_swipeThreshold) { // <-- was >, should be <
       // NOPE
       widget.onPass(p);
       setState(() {
@@ -104,8 +104,9 @@ class _SwipeDeckState extends State<SwipeDeck> with SingleTickerProviderStateMix
 
         // progress geser (untuk animasi label)
         final dragX = _position.dx;
-        final likeOpacity = (dragX / _swipeThreshold).clamp(0, 1).toDouble();
-        final nopeOpacity = (-dragX / _swipeThreshold).clamp(0, 1).toDouble();
+        final likeOpacity = (dragX / _swipeThreshold).clamp(0.0, 1.0);
+        final nopeOpacity = (-dragX / _swipeThreshold).clamp(0.0, 1.0);
+
 
         // sudut rotasi kartu aktif
         final angle = (dragX / size.width) * _maxAngle;
@@ -124,51 +125,49 @@ class _SwipeDeckState extends State<SwipeDeck> with SingleTickerProviderStateMix
             ),
 
         //   Kartu paling atas (aktif)
-          Positioned.fill(
-              child: GestureDetector(
-                onPanStart: _onPanStart,
-                onPanUpdate: _onPanUpdate,
-                onPanEnd: (d) => _onPanEnd(d, current, size),
-                child: Transform.rotate(
-                    angle: angle,
-                  alignment:
-                    dragX >= 0 ? Alignment.topRight : Alignment.topLeft,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                          child: _ProfileCard(profile: current, blurBottom: true)
+        Positioned.fill(
+          child: GestureDetector(
+            onPanStart: _onPanStart,
+            onPanUpdate: _onPanUpdate,
+            onPanEnd: (d) => _onPanEnd(d, current, size),
+            child: Transform.translate(
+              offset: _position,
+              child: Transform.rotate(
+                angle: angle,
+                alignment: dragX >= 0 ? Alignment.topRight : Alignment.topLeft,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _ProfileCard(
+                        profile: current,
+                        blurBottom: true,
+                        dragOffset: _position,          // <-- kirim ke card utk parallax
                       ),
-                    //   Badge Like (Kanan atas)
-                      Positioned(
-                          top: 28,
-                          right: 24,
-                          child: Opacity(
-                            opacity: likeOpacity,
-                            child: _SwipeBadge(
-                              text: 'LIKE',
-                              color: Colors.green,
-                              alignRight: true,
-                            ),
-                          ),
+                    ),
+                    // Badge Like/Nope tetap
+                    Positioned(
+                      top: 28,
+                      right: 24,
+                      child: Opacity(
+                        opacity: likeOpacity,
+                        child: _SwipeBadge(text: 'LIKE', color: Colors.green, alignRight: true),
                       ),
-                    //   Badge NOPE (Kiri atas)
-                      Positioned(
-                        top: 28,
-                        left: 24,
-                        child: Opacity(
-                          opacity: nopeOpacity,
-                          child: _SwipeBadge(
-                            text: 'NOPE',
-                            color: Colors.red,
-                            alignRight: false,
-                          ),
-                        ),
-                      )
-                    ],
-                  )
+                    ),
+                    Positioned(
+                      top: 28,
+                      left: 24,
+                      child: Opacity(
+                        opacity: nopeOpacity,
+                        child: _SwipeBadge(text: 'NOPE', color: Colors.red, alignRight: false),
+                      ),
+                    ),
+                  ],
                 ),
-              )
-          )
+              ),
+            ),
+          ),
+        ),
+
         ]);
       },
     );
@@ -181,10 +180,20 @@ class _SwipeDeckState extends State<SwipeDeck> with SingleTickerProviderStateMix
 class _ProfileCard extends StatelessWidget {
   final Profile profile;
   final bool blurBottom;
-  const _ProfileCard({required this.profile, this.blurBottom = false});
+  final Offset? dragOffset;
+
+  const _ProfileCard({
+    required this.profile,
+    this.blurBottom = false,
+    this.dragOffset,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Parallax halus: 4% horizontal, 2% vertical
+    final dx = -((dragOffset?.dx ?? 0) * 0.04);  // minus = gerak berlawanan
+    final dy = -((dragOffset?.dy ?? 0) * 0.02);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 10,
@@ -192,10 +201,13 @@ class _ProfileCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            profile.photos.first,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade300),
+          Transform.translate(
+            offset: Offset(dx, dy),
+            child: Image.network(
+              profile.photos.first,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade300),
+            ),
           ),
           if (blurBottom)
             Align(
@@ -204,9 +216,9 @@ class _ProfileCard extends StatelessWidget {
                 height: 140,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black87, Colors.transparent],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Colors.black87, Colors.transparent],
                   ),
                 ),
               ),
@@ -221,14 +233,12 @@ class _ProfileCard extends StatelessWidget {
                 color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                shadows: [
-                  Shadow(color: Colors.black54, blurRadius: 6)
-                ]
+                shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
               ),
             ),
-          )
+          ),
         ],
-      )
+      ),
     );
   }
 }
