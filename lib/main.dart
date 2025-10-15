@@ -6,4 +6,5 @@ import 'app.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(ProviderScope(child: FlirtoApp()));
+
 }
