@@ -1,5 +1,9 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app_router.dart';
+import 'core/theme.dart';
 
 class FlirtoApp extends ConsumerWidget {
   const FlirtoApp({ super.key });
